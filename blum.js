@@ -12,6 +12,7 @@ class GameBot {
     this.userInfo = null;
     this.currentGameId = null;
     this.firstAccountEndTime = null;
+    this.taskKeywords = null;
     this.userAgents = [
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15',
@@ -224,7 +225,7 @@ class GameBot {
   async Countdown(seconds) {
     for (let i = Math.floor(seconds); i >= 0; i--) {
       readline.cursorTo(process.stdout, 0);
-	   readline.clearLine(process.stdout, 0); // delete
+	    readline.clearLine(process.stdout, 0); // delete
       process.stdout.write(`[*] Chờ ${i} giây để tiếp tục...`);
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
@@ -234,7 +235,7 @@ class GameBot {
   async getTasks() {
     try {
       await this.randomDelay();
-      const response = await axios.get('https://game-domain.blum.codes/api/v1/tasks', { headers: await this.headers(this.token) });
+      const response = await axios.get('https://earn-domain.blum.codes/api/v1/tasks', { headers: await this.headers(this.token) });
       if (response.status === 200) {
         return response.data;
       } else {
@@ -248,10 +249,52 @@ class GameBot {
   }
 
   async startTask(taskId) {
+    const maxAttempts = 1;
+    const delayBetweenAttempts = 1000;
+  
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.randomDelay();
+        const response = await axios.post(`https://earn-domain.blum.codes/api/v1/tasks/${taskId}/start`, {}, { headers: await this.headers(this.token) });
+        return response.data;
+      } catch (error) {
+        await this.log(`Thử lần ${attempt} bắt đầu lại nhiệm vụ ${taskId} thất bại: ${error.message}`, 'warning');
+        
+        if (attempt < maxAttempts) {
+          await this.log(`Thử lại sau 1 giây...`, 'info');
+          await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+        } else {
+          await this.log(`Không thể bắt đầu nhiệm vụ ${taskId} sau ${maxAttempts} lần thử`, 'error');
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  async getTaskKeywords() {
+    try {
+      const response = await axios.get('https://raw.githubusercontent.com/mmo69trading/nodejs/refs/heads/main/blum.json');
+      const data = response.data;
+  
+      if (data && data.tasks && Array.isArray(data.tasks)) {
+        this.taskKeywords = data.tasks.reduce((acc, item) => {
+          if (item.id && item.keyword) {
+            acc[item.id] = item.keyword;
+          }
+          return acc;
+        }, {});
+      }
+    } catch (error) {
+      this.taskKeywords = {};
+    }
+  }
+
+  async validateTask(taskId, keyword) {
     try {
       await this.randomDelay();
-      const response = await axios.post(`https://game-domain.blum.codes/api/v1/tasks/${taskId}/start`, {}, { headers: await this.headers(this.token) });
-      return response.data;
+      const response = await this.makeRequest('post', `https://earn-domain.blum.codes/api/v1/tasks/${taskId}/validate`, { keyword }, true);
+      return response;
     } catch (error) {
       return null;
     }
@@ -260,7 +303,7 @@ class GameBot {
   async claimTask(taskId) {
     try {
       await this.randomDelay();
-      const response = await axios.post(`https://game-domain.blum.codes/api/v1/tasks/${taskId}/claim`, {}, { headers: await this.headers(this.token) });
+      const response = await axios.post(`https://earn-domain.blum.codes/api/v1/tasks/${taskId}/claim`, {}, { headers: await this.headers(this.token) });
       return response.data;
     } catch (error) {
       return null;
@@ -323,7 +366,7 @@ class GameBot {
           continue;
         }
 
-        console.log(`== Tài khoản ${i + 1} | ${userInfo.username.green} ==`);
+        console.log(`========== Tài khoản ${i + 1} | ${userInfo.username.green} ==========`);
         await this.randomDelay();
         
         const balanceInfo = await this.getBalance();
@@ -367,70 +410,103 @@ class GameBot {
             await this.log('Không thể lấy thông tin số dư', 'error');
         }
 
-        if (hoinhiemvu) {
-          const dataTasks = await this.getTasks();
-          if (Array.isArray(dataTasks) && dataTasks.length > 0) {
-            await this.log('Đã lấy danh sách nhiệm vụ', 'info');
-            
-            let allTasks = [];
-            for (const section of dataTasks) {
-              if (section.tasks && Array.isArray(section.tasks)) {
-                allTasks = allTasks.concat(section.tasks);
-              }
-              if (section.subSections && Array.isArray(section.subSections)) {
-                for (const subSection of section.subSections) {
-                  if (subSection.tasks && Array.isArray(subSection.tasks)) {
-                    allTasks = allTasks.concat(subSection.tasks);
-                  }
-                }
-              }
-            }
-    
-            const skipTasks = [
-              "5daf7250-76cc-4851-ac44-4c7fdcfe5994",
-              "3b0ae076-9a85-4090-af55-d9f6c9463b2b",
-              "89710917-9352-450d-b96e-356403fc16e0",
-              "220ee7b1-cca4-4af8-838a-2001cb42b813",
-              "c4e04f2e-bbf5-4e31-917b-8bfa7c4aa3aa",
-              "f382ec3f-089d-46de-b921-b92adfd3327a",
-              "d3716390-ce5b-4c26-b82e-e45ea7eba258",
-              "5ecf9c15-d477-420b-badf-058537489524",
-              "d057e7b7-69d3-4c15-bef3-b300f9fb7e31",
-              "a4ba4078-e9e2-4d16-a834-02efe22992e2"
-            ];
-    
-            const taskFilter = allTasks.filter(
-              (task) =>
-                !skipTasks.includes(task.id) &&
-                task.status !== "FINISHED" &&
-                !task.isHidden
-            );
-    
-            console.log('[*] Tổng số nhiệm vụ:', taskFilter.length);
-    
-            for (const task of taskFilter) {
-              await this.log(`Bắt đầu nhiệm vụ: ${task.title} | ${task.id}`, 'info');
-              
-              const startResult = await this.startTask(task.id);
-              if (startResult) {
-                await this.log(`Đã bắt đầu nhiệm vụ: ${task.title}`, 'success');
-              } else {
-                continue;
-              }
-              
-              await this.Countdown(3);
-              
-              const claimResult = await this.claimTask(task.id);
-              if (claimResult && claimResult.status === "FINISHED") {
-                await this.log(`Làm nhiệm vụ ${task.title.yellow}${`... trạng thái: thành công!`.green}`, 'success');
-              } else {
-                await this.log(`Không thể nhận phần thưởng cho nhiệm vụ: ${task.title.yellow}`, 'error');
-              }
-            }
-          } else {
-            await this.log('Không thể lấy danh sách nhiệm vụ hoặc danh sách nhiệm vụ trống', 'error');
-          }
-        }
+		if (hoinhiemvu) {
+		  await this.getTaskKeywords();
+
+		  const dataTasks = await this.getTasks();
+		  if (Array.isArray(dataTasks) && dataTasks.length > 0) {
+			await this.log('Đã lấy danh sách nhiệm vụ', 'info');
+			
+			let allTasks = [];
+			for (const section of dataTasks) {
+			  if (section.tasks && Array.isArray(section.tasks)) {
+				allTasks = allTasks.concat(section.tasks);
+				
+				// Process subtasks
+				for (const task of section.tasks) {
+				  if (task.subTasks && Array.isArray(task.subTasks)) {
+					allTasks = allTasks.concat(task.subTasks);
+				  }
+				}
+			  }
+			  if (section.subSections && Array.isArray(section.subSections)) {
+				for (const subSection of section.subSections) {
+				  if (subSection.tasks && Array.isArray(subSection.tasks)) {
+					allTasks = allTasks.concat(subSection.tasks);
+					
+					// Process subtasks in subsections
+					for (const task of subSection.tasks) {
+					  if (task.subTasks && Array.isArray(task.subTasks)) {
+						allTasks = allTasks.concat(task.subTasks);
+					  }
+					}
+				  }
+				}
+			  }
+			}
+
+			const skipTasks = [
+			  "5daf7250-76cc-4851-ac44-4c7fdcfe5994",
+			  "3b0ae076-9a85-4090-af55-d9f6c9463b2b",
+			  "89710917-9352-450d-b96e-356403fc16e0",
+			  "220ee7b1-cca4-4af8-838a-2001cb42b813",
+			  "c4e04f2e-bbf5-4e31-917b-8bfa7c4aa3aa",
+			  "f382ec3f-089d-46de-b921-b92adfd3327a",
+			  "d3716390-ce5b-4c26-b82e-e45ea7eba258",
+			  "5ecf9c15-d477-420b-badf-058537489524",
+			  "d057e7b7-69d3-4c15-bef3-b300f9fb7e31",
+			  "a4ba4078-e9e2-4d16-a834-02efe22992e2",
+			  "39391eb2-f031-4954-bd8a-e7aecbb1f192",
+			  "d7accab9-f987-44fc-a70b-e414004e8314"
+			];
+
+			const taskFilter = allTasks.filter(
+			  (task) =>
+				!skipTasks.includes(task.id) &&
+				task.status !== "FINISHED" &&
+				!task.isHidden
+			);
+
+			for (const task of taskFilter) {
+			  await this.log(`Bắt đầu nhiệm vụ: ${task.title} | ${task.id}`, 'info');
+			  
+			  const startResult = await this.startTask(task.id);
+			  if (startResult) {
+				await this.log(`Đã bắt đầu nhiệm vụ: ${task.title}`, 'success');
+			  } else {
+				continue;
+			  }
+			  
+			  await new Promise(resolve => setTimeout(resolve, 3000));
+			  
+			  if (task.validationType === "KEYWORD") {
+				const keyword = this.taskKeywords[task.id];
+				await this.log(`Task ID: ${task.id}, Keyword: ${keyword}`, 'info');
+				if (keyword) {
+				  const validateResult = await this.validateTask(task.id, keyword);
+				  if (!validateResult) {
+					await this.log(`Không thể xác thực nhiệm vụ: ${task.title}`, 'error');
+					continue;
+				  } else {
+					await this.log(`Xác thực nhiệm vụ thành công: ${task.title}`, 'success');
+				  }
+				} else {
+				  await this.log(`Task ${task.title} chưa có câu trả lời nên bỏ qua`, 'warning');
+				  continue;
+				}
+			  }
+			  
+			  const claimResult = await this.claimTask(task.id);
+			  if (claimResult && claimResult.status === "FINISHED") {
+				await this.log(`Làm nhiệm vụ ${task.title.yellow}${`... trạng thái: thành công!`.green}`, 'success');
+			  } else {
+				await this.log(`Không thể nhận phần thưởng cho nhiệm vụ: ${task.title.yellow}`, 'error');
+			  }
+			}      
+		  } else {
+			await this.log('Không thể lấy danh sách nhiệm vụ hoặc danh sách nhiệm vụ trống', 'error');
+		  }
+		}
 
         const dailyRewardResult = await this.checkDailyReward();
         if (dailyRewardResult) {
