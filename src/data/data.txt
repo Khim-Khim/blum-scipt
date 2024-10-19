@@ -1,0 +1,1 @@
+user=%7B%22id%22%3A1930047303%2C%22first_name%22%3A%22Khim%F0%9F%8D%85%F0%9F%90%88%E2%80%8D%E2%AC%9B%22%2C%22last_name%22%3A%22%22%2C%22username%22%3A%22Khim_259%22%2C%22language_code%22%3A%22en%22%2C%22allows_write_to_pm%22%3Atrue%7D&chat_instance=-5466114406927823168&chat_type=sender&auth_date=1729310921&hash=297086d8b37a5a177785e88138c122bdb9b2ec2f79f670b36bbca02a5944a21f

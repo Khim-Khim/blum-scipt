@@ -1,5 +1,5 @@
 @echo off
-title Blumv2
+title Blum V III
 setlocal
 
 :: Open terminal here
@@ -25,7 +25,7 @@ if not exist node_modules (
 
 :: Run index.js for Node.js
 echo Loading Tool...
-node blum.js
+npm run start
 
 :: pause
 pause
